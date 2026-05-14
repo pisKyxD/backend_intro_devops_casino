@@ -36,26 +36,19 @@ jobs:
           docker push $IMAGE:latest
           docker push $IMAGE:v1.0.0
 
-      - name: Deploy en EC2 backend
-        uses: appleboy/ssh-action@v1
-        env:
-          IMAGE: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/casino-db:latest
-        with:
-          host: ${{ secrets.EC2_BACKEND_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE
-          script: |
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-              | docker login --username AWS --password-stdin \
-                ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-            docker volume create pg_data || true
-            docker pull "$IMAGE"
-            docker rm -f casino-db || true
-            docker run -d --name casino-db --restart unless-stopped \
-              -p 5432:5432 \
-              -v pg_data:/var/lib/postgresql/data \
-              -e POSTGRES_USER=casino \
-              -e POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e POSTGRES_DB=casino_db \
-              "$IMAGE"
+      - name: Deploy en EC2 backend via SSM
+        run: |
+          IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/casino-db:latest
+          INSTANCE_ID=${{ secrets.EC2_BACKEND_INSTANCE_ID }}
+
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands="[
+              \"aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com\",
+              \"docker volume create pg_data || true\",
+              \"docker pull $IMAGE\",
+              \"docker rm -f casino-db || true\",
+              \"docker run -d --name casino-db --restart unless-stopped -p 5432:5432 -v pg_data:/var/lib/postgresql/data -e POSTGRES_USER=casino -e POSTGRES_PASSWORD=${{ secrets.DB_PASSWORD }} -e POSTGRES_DB=casino_db $IMAGE\"
+            ]" \
+            --region ${{ secrets.AWS_REGION }}

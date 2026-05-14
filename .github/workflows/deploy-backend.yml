@@ -35,27 +35,18 @@ jobs:
           docker push $IMAGE:latest
           docker push $IMAGE:v1.0.0
 
-      - name: Deploy en EC2 backend
-        uses: appleboy/ssh-action@v1
-        env:
-          IMAGE: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/casino-backend:latest
-        with:
-          host: ${{ secrets.EC2_BACKEND_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE
-          script: |
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-              | docker login --username AWS --password-stdin \
-                ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-            docker pull "$IMAGE"
-            docker rm -f casino-backend || true
-            docker run -d --name casino-backend --restart unless-stopped \
-              -p 3000:3000 \
-              -e DB_HOST=${{ secrets.DB_HOST_PRIVATE }} \
-              -e DB_USER=casino \
-              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e DB_NAME=casino_db \
-              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-              -e CORS_ORIGIN="*" \
-              "$IMAGE"
+      - name: Deploy en EC2 backend via SSM
+        run: |
+          IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/casino-backend:latest
+          INSTANCE_ID=${{ secrets.EC2_BACKEND_INSTANCE_ID }}
+
+          aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands="[
+              \"aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com\",
+              \"docker pull $IMAGE\",
+              \"docker rm -f casino-backend || true\",
+              \"docker run -d --name casino-backend --restart unless-stopped -p 3000:3000 -e DB_HOST=${{ secrets.DB_HOST_PRIVATE }} -e DB_USER=casino -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} -e DB_NAME=casino_db -e JWT_SECRET=${{ secrets.JWT_SECRET }} -e CORS_ORIGIN=* $IMAGE\"
+            ]" \
+            --region ${{ secrets.AWS_REGION }}

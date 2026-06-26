@@ -13,6 +13,7 @@ API REST en Node.js + Express con PostgreSQL como base de datos.
 
 ---
 
+<<<<<<< HEAD
 ## Stack# casino-backend
 
 Backend del **Casino Online VidalCasino** — Experiencia 2 de la asignatura
@@ -591,6 +592,10 @@ docker images | grep casino-backend
 | `cors` | ^2.x | Middleware CORS |
 
 
+=======
+## Stack
+
+>>>>>>> upstream/main
 - Node.js 20 (recomendado correr sobre `node:20-alpine`)
 - Express 4
 - PostgreSQL 16 (recomendado `postgres:16-alpine` con volumen nombrado)

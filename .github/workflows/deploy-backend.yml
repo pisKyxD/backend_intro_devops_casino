@@ -24,7 +24,7 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build tag y push
+      - name: Build tag y push (API)
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           TAG: ${{ github.sha }}
@@ -36,6 +36,19 @@ jobs:
           docker push $IMAGE:latest
           docker push $IMAGE:$TAG
 
+      # Nuevo: construye y sube la imagen de Postgres (db/Dockerfile + init.sql).
+      # Antes nadie la construía y el repo casino-db en ECR quedaba vacío,
+      # provocando ImagePullBackOff/ErrImagePull en el deployment de postgres.
+      - name: Build tag y push (DB)
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          IMAGE=$REGISTRY/casino-db
+          docker build -t $IMAGE:latest -t $IMAGE:$TAG ./db
+          docker push $IMAGE:latest
+          docker push $IMAGE:$TAG
+
       - name: Deploy en EKS
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
@@ -44,4 +57,6 @@ jobs:
           aws eks update-kubeconfig --name vidal-casino --region us-east-1
           kubectl apply -f k8s/
           kubectl set image deployment/casino-backend casino-backend=$REGISTRY/casino-backend:$TAG
+          kubectl set image deployment/postgres postgres=$REGISTRY/casino-db:$TAG
           kubectl rollout status deployment/casino-backend
+          kubectl rollout status deployment/postgres

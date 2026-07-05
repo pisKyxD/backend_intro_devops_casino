@@ -27,6 +27,15 @@ spec:
             limits:
               cpu: "500m"
               memory: "256Mi"
+          # startupProbe: le da a la app hasta 30 x 5s = 150s para terminar de
+          # conectar a Postgres (esperarBD) antes de que el liveness la mate.
+          # Mientras el startupProbe no pase, el livenessProbe NO se ejecuta.
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: 3000
+            failureThreshold: 30
+            periodSeconds: 5
           readinessProbe:
             httpGet:
               path: /readyz
@@ -37,7 +46,6 @@ spec:
             httpGet:
               path: /livez
               port: 3000
-            initialDelaySeconds: 10
             periodSeconds: 15
 ---
 apiVersion: v1

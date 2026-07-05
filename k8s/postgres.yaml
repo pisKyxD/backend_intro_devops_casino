@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: 477261240280.dkr.ecr.us-east-1.amazonaws.com/casino-db:latest
+          image: 465742243019.dkr.ecr.us-east-1.amazonaws.com/casino-db:latest
           ports:
             - containerPort: 5432
           env:

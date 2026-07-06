@@ -1,28 +1,9 @@
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-data
-spec:
-  accessModes:
-    - ReadWriteOnce
-  # gp2 es el StorageClass por defecto en EKS. Si tu clúster tiene otro
-  # configurado como default, puedes omitir "storageClassName" por completo.
-  storageClassName: gp2
-  resources:
-    requests:
-      storage: 5Gi
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
 spec:
   replicas: 1
-  # Recreate en vez de RollingUpdate: como el volumen es ReadWriteOnce,
-  # dos pods no pueden montarlo al mismo tiempo. Con Recreate, Kubernetes
-  # mata el pod viejo ANTES de crear el nuevo, evitando el conflicto.
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       app: postgres
@@ -52,28 +33,12 @@ spec:
                 secretKeyRef:
                   name: casino-secrets
                   key: DB_NAME
-            # Postgres exige un directorio VACÍO para PGDATA. Un volumen EBS
-            # nuevo trae un "lost+found" creado por el filesystem, lo que hace
-            # fallar el initdb. La subcarpeta "pgdata" evita ese conflicto.
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
-            initialDelaySeconds: 5
-            periodSeconds: 10
-          livenessProbe:
-            exec:
-              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
-            initialDelaySeconds: 15
-            periodSeconds: 20
       volumes:
         - name: postgres-data
-          persistentVolumeClaim:
-            claimName: postgres-data
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

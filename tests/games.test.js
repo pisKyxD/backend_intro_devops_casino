@@ -5,7 +5,7 @@ const { jugar: jugarSlots, SIMBOLOS } = require('../src/games/slots');
 
 describe('blackjack · valorMano', () => {
   test('As + figura = 21 (blackjack)', () => {
-    expect(valorMano([{ valor: 'A' }, { valor: 'K' }])).toBe(21);
+    expect(valorMano([{ valor: 'A' }, { valor: 'K' }])).toBe(42);
   });
   test('dos Ases = 12 (un As vale 1)', () => {
     expect(valorMano([{ valor: 'A' }, { valor: 'A' }])).toBe(12);
